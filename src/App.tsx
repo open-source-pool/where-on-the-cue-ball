@@ -224,7 +224,6 @@ function App() {
                 height={canvasSizePx}
                 viewBox={`0 0 ${canvasSizePx} ${canvasSizePx}`}
                 className="h-auto w-full select-none touch-none"
-                draggable="false"
                 style={{ WebkitUserSelect: "none", userSelect: "none", WebkitTouchCallout: "none" }}
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
