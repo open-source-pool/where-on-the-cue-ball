@@ -115,6 +115,13 @@ function App() {
     [gridPoints],
   );
 
+  const vibrate = useCallback((duration = 12) => {
+    if (typeof navigator === "undefined") return;
+    if ("vibrate" in navigator) {
+      navigator.vibrate(duration);
+    }
+  }, []);
+
   const updatePositionFromEvent = useCallback(
     (event: React.PointerEvent) => {
       const svg = svgRef.current;
@@ -124,13 +131,23 @@ function App() {
       const relativeY = event.clientY - rect.top;
       const offsetXmm = (relativeX - rect.width / 2) / mmToPx;
       const offsetYmm = (rect.height / 2 - relativeY) / mmToPx;
-      setTipPosition(findNearestGridPoint({ x: offsetXmm, y: offsetYmm }));
+      const snapped = findNearestGridPoint({ x: offsetXmm, y: offsetYmm });
+      setTipPosition((prev) => {
+        if (prev.x === snapped.x && prev.y === snapped.y) {
+          return prev;
+        }
+        if (event.pointerType === "touch") {
+          vibrate();
+        }
+        return snapped;
+      });
     },
-    [findNearestGridPoint, mmToPx],
+    [findNearestGridPoint, mmToPx, vibrate],
   );
 
   const handlePointerDown = (event: React.PointerEvent) => {
     draggingRef.current = true;
+    event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
     updatePositionFromEvent(event);
   };
@@ -198,23 +215,25 @@ function App() {
         <div className="grid gap-6 lg:grid-cols-[400px,1fr]">
           <div
             ref={exportRef}
-            className="flex items-center justify-center rounded-2xl bg-felt/70 p-4 shadow-inner"
+            className="flex select-none items-center justify-center rounded-2xl bg-felt/70 p-4 shadow-inner"
           >
             <div ref={canvasWrapperRef} className="w-full max-w-[420px]">
-            <svg
-              ref={svgRef}
-              width={canvasSizePx}
-              height={canvasSizePx}
-              viewBox={`0 0 ${canvasSizePx} ${canvasSizePx}`}
-              className="h-auto w-full touch-none"
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={endDrag}
-              onPointerLeave={endDrag}
-              onPointerCancel={endDrag}
-              aria-labelledby="cueballTitle"
-              role="img"
-            >
+              <svg
+                ref={svgRef}
+                width={canvasSizePx}
+                height={canvasSizePx}
+                viewBox={`0 0 ${canvasSizePx} ${canvasSizePx}`}
+                className="h-auto w-full select-none touch-none"
+                draggable="false"
+                style={{ WebkitUserSelect: "none", userSelect: "none", WebkitTouchCallout: "none" }}
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={endDrag}
+                onPointerLeave={endDrag}
+                onPointerCancel={endDrag}
+                aria-labelledby="cueballTitle"
+                role="img"
+              >
               <title id="cueballTitle">Cue ball contact visualization</title>
               <defs>
                 <radialGradient id="ballShade" cx="30%" cy="30%" r="70%">
@@ -285,7 +304,7 @@ function App() {
                 stroke="white"
                 strokeWidth="2"
               />
-            </svg>
+              </svg>
             </div>
           </div>
 
