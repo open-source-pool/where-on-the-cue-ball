@@ -1,4 +1,11 @@
-import { useCallback, useMemo, useRef, useState, useLayoutEffect, useEffect } from "react";
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  useLayoutEffect,
+  useEffect,
+} from "react";
 import { toPng } from "html-to-image";
 
 type PointerKind = "mouse" | "pen" | "touch" | "unknown";
@@ -306,7 +313,7 @@ function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-felt p-4 sm:p-6">
+    <div className="min-h-screen bg-felt/40 p-4 sm:p-6">
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 rounded-2xl bg-white/90 p-4 shadow-xl ring-1 ring-black/5 sm:p-6">
         <header className="space-y-1">
           <h1 className="text-2xl font-semibold text-slate-900">
