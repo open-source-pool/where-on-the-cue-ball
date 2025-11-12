@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState, useLayoutEffect } from "react";
 import { toPng } from "html-to-image";
 
 const BALL_DIAMETER_MM = 57.2;
@@ -6,6 +6,8 @@ const TIP_DIAMETER_MM = 12.4;
 const HALF_TIP_MM = TIP_DIAMETER_MM / 2;
 const BALL_RADIUS_MM = BALL_DIAMETER_MM / 2;
 const CANVAS_SIZE_PX = 360;
+const MIN_CANVAS_PX = 240;
+const MAX_CANVAS_PX = 420;
 
 type TipPosition = {
   x: number; // east-west in mm (east is positive)
@@ -69,8 +71,29 @@ function App() {
   const gridPoints = useGridPoints();
   const [tipPosition, setTipPosition] = useState<TipPosition>({ x: 0, y: 0 });
   const draggingRef = useRef(false);
+  const canvasWrapperRef = useRef<HTMLDivElement>(null);
+  const [canvasSizePx, setCanvasSizePx] = useState(CANVAS_SIZE_PX);
 
-  const mmToPx = CANVAS_SIZE_PX / BALL_DIAMETER_MM;
+  useLayoutEffect(() => {
+    const wrapper = canvasWrapperRef.current;
+    if (!wrapper || typeof ResizeObserver === "undefined") {
+      return;
+    }
+    const clampSize = (width: number) => {
+      if (!width) return;
+      const next = Math.min(Math.max(width, MIN_CANVAS_PX), MAX_CANVAS_PX);
+      setCanvasSizePx(next);
+    };
+    clampSize(wrapper.clientWidth);
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      clampSize(entry.contentRect.width);
+    });
+    observer.observe(wrapper);
+    return () => observer.disconnect();
+  }, []);
+
+  const mmToPx = canvasSizePx / BALL_DIAMETER_MM;
   const ballRadiusPx = BALL_RADIUS_MM * mmToPx;
   const tipRadiusPx = (TIP_DIAMETER_MM / 2) * mmToPx;
 
@@ -161,8 +184,8 @@ function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-felt/60 p-6">
-      <div className="mx-auto flex max-w-4xl flex-col gap-6 rounded-2xl bg-white/90 p-6 shadow-xl ring-1 ring-black/5">
+    <div className="min-h-screen bg-felt/60 p-4 sm:p-6">
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 rounded-2xl bg-white/90 p-4 shadow-xl ring-1 ring-black/5 sm:p-6">
         <header className="space-y-1">
           <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">Cue Ball Map</p>
           <h1 className="text-2xl font-semibold text-slate-900">Where on the Cue Ball?</h1>
@@ -172,14 +195,18 @@ function App() {
           </p>
         </header>
 
-        <div className="grid gap-6 lg:grid-cols-[360px,1fr]">
-          <div ref={exportRef} className="flex items-center justify-center rounded-2xl bg-felt/70 p-4 shadow-inner">
+        <div className="grid gap-6 lg:grid-cols-[400px,1fr]">
+          <div
+            ref={exportRef}
+            className="flex items-center justify-center rounded-2xl bg-felt/70 p-4 shadow-inner"
+          >
+            <div ref={canvasWrapperRef} className="w-full max-w-[420px]">
             <svg
               ref={svgRef}
-              width={CANVAS_SIZE_PX}
-              height={CANVAS_SIZE_PX}
-              viewBox={`0 0 ${CANVAS_SIZE_PX} ${CANVAS_SIZE_PX}`}
-              className="touch-none"
+              width={canvasSizePx}
+              height={canvasSizePx}
+              viewBox={`0 0 ${canvasSizePx} ${canvasSizePx}`}
+              className="h-auto w-full touch-none"
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={endDrag}
@@ -200,7 +227,7 @@ function App() {
                 </filter>
               </defs>
               <rect width="100%" height="100%" rx="24" fill="transparent" />
-              <g transform={`translate(${CANVAS_SIZE_PX / 2} ${CANVAS_SIZE_PX / 2})`}>
+              <g transform={`translate(${canvasSizePx / 2} ${canvasSizePx / 2})`}>
                 {gridLevels.map((level) => {
                   const offset = level * mmToPx;
                   return (
@@ -228,13 +255,13 @@ function App() {
                 })}
               </g>
               <circle
-                cx={CANVAS_SIZE_PX / 2}
-                cy={CANVAS_SIZE_PX / 2}
+                cx={canvasSizePx / 2}
+                cy={canvasSizePx / 2}
                 r={ballRadiusPx}
                 fill="url(#ballShade)"
                 filter="url(#shadow)"
               />
-              <g transform={`translate(${CANVAS_SIZE_PX / 2} ${CANVAS_SIZE_PX / 2})`}>
+              <g transform={`translate(${canvasSizePx / 2} ${canvasSizePx / 2})`}>
                 {gridPoints.map((point, index) => {
                   const cx = point.x * mmToPx;
                   const cy = -point.y * mmToPx;
@@ -251,14 +278,15 @@ function App() {
                 })}
               </g>
               <circle
-                cx={CANVAS_SIZE_PX / 2 + tipPosition.x * mmToPx}
-                cy={CANVAS_SIZE_PX / 2 - tipPosition.y * mmToPx}
+                cx={canvasSizePx / 2 + tipPosition.x * mmToPx}
+                cy={canvasSizePx / 2 - tipPosition.y * mmToPx}
                 r={tipRadiusPx}
                 fill="#111827"
                 stroke="white"
                 strokeWidth="2"
               />
             </svg>
+            </div>
           </div>
 
           <div className="flex flex-col gap-4">
@@ -318,7 +346,7 @@ function App() {
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"
                 className="flex-1 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
