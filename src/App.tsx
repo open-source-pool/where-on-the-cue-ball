@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useRef, useState, useLayoutEffect } from "react";
 import { toPng } from "html-to-image";
 
+type PointerKind = "mouse" | "pen" | "touch" | "unknown";
+
 const BALL_DIAMETER_MM = 57.2;
 const TIP_DIAMETER_MM = 12.4;
 const HALF_TIP_MM = TIP_DIAMETER_MM / 2;
@@ -65,12 +67,17 @@ const downloadBlob = (blob: Blob, filename: string) => {
   setTimeout(() => URL.revokeObjectURL(link.href), 0);
 };
 
+type VibrateNavigator = Navigator & {
+  webkitVibrate?: (pattern: number | number[]) => boolean;
+};
+
 function App() {
   const exportRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const gridPoints = useGridPoints();
   const [tipPosition, setTipPosition] = useState<TipPosition>({ x: 0, y: 0 });
   const draggingRef = useRef(false);
+  const touchActiveRef = useRef(false);
   const canvasWrapperRef = useRef<HTMLDivElement>(null);
   const [canvasSizePx, setCanvasSizePx] = useState(CANVAS_SIZE_PX);
 
@@ -117,18 +124,22 @@ function App() {
 
   const vibrate = useCallback((duration = 12) => {
     if (typeof navigator === "undefined") return;
-    if ("vibrate" in navigator) {
-      navigator.vibrate(duration);
+    const nav = navigator as VibrateNavigator;
+    const vib = (nav.vibrate ?? nav.webkitVibrate) as
+      | ((pattern: number | Iterable<number>) => boolean)
+      | undefined;
+    if (typeof vib === "function") {
+      vib.call(nav, duration);
     }
   }, []);
 
-  const updatePositionFromEvent = useCallback(
-    (event: React.PointerEvent) => {
+  const updatePositionFromClientPoint = useCallback(
+    (clientX: number, clientY: number, pointerType: PointerKind) => {
       const svg = svgRef.current;
       if (!svg) return;
       const rect = svg.getBoundingClientRect();
-      const relativeX = event.clientX - rect.left;
-      const relativeY = event.clientY - rect.top;
+      const relativeX = clientX - rect.left;
+      const relativeY = clientY - rect.top;
       const offsetXmm = (relativeX - rect.width / 2) / mmToPx;
       const offsetYmm = (rect.height / 2 - relativeY) / mmToPx;
       const snapped = findNearestGridPoint({ x: offsetXmm, y: offsetYmm });
@@ -136,7 +147,7 @@ function App() {
         if (prev.x === snapped.x && prev.y === snapped.y) {
           return prev;
         }
-        if (event.pointerType === "touch") {
+        if (pointerType === "touch") {
           vibrate();
         }
         return snapped;
@@ -145,16 +156,36 @@ function App() {
     [findNearestGridPoint, mmToPx, vibrate],
   );
 
+  const updatePositionFromPointerEvent = useCallback(
+    (event: React.PointerEvent) => {
+      const pointerType = (event.pointerType ?? "unknown") as PointerKind;
+      updatePositionFromClientPoint(event.clientX, event.clientY, pointerType);
+    },
+    [updatePositionFromClientPoint],
+  );
+
+  const updatePositionFromTouchEvent = useCallback(
+    (event: React.TouchEvent) => {
+      const touch = event.touches[0] ?? event.changedTouches[0];
+      if (!touch) return;
+      updatePositionFromClientPoint(touch.clientX, touch.clientY, "touch");
+    },
+    [updatePositionFromClientPoint],
+  );
+
   const handlePointerDown = (event: React.PointerEvent) => {
     draggingRef.current = true;
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
-    updatePositionFromEvent(event);
+    updatePositionFromPointerEvent(event);
   };
 
   const handlePointerMove = (event: React.PointerEvent) => {
     if (!draggingRef.current) return;
-    updatePositionFromEvent(event);
+    if (event.pointerType === "touch") {
+      event.preventDefault();
+    }
+    updatePositionFromPointerEvent(event);
   };
 
   const endDrag = (event: React.PointerEvent) => {
@@ -162,6 +193,26 @@ function App() {
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
+  };
+
+  const handleTouchStart = (event: React.TouchEvent) => {
+    touchActiveRef.current = true;
+    draggingRef.current = true;
+    event.preventDefault();
+    updatePositionFromTouchEvent(event);
+  };
+
+  const handleTouchMove = (event: React.TouchEvent) => {
+    if (!touchActiveRef.current) return;
+    event.preventDefault();
+    updatePositionFromTouchEvent(event);
+  };
+
+  const handleTouchEnd = (event: React.TouchEvent) => {
+    touchActiveRef.current = false;
+    draggingRef.current = false;
+    event.preventDefault();
+    updatePositionFromTouchEvent(event);
   };
 
   const downloadSvg = () => {
@@ -230,6 +281,10 @@ function App() {
                 onPointerUp={endDrag}
                 onPointerLeave={endDrag}
                 onPointerCancel={endDrag}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                onTouchCancel={handleTouchEnd}
                 aria-labelledby="cueballTitle"
                 role="img"
               >
