@@ -330,7 +330,7 @@ function App() {
         <div className="grid gap-6 lg:grid-cols-[400px,1fr]">
           <div
             ref={exportRef}
-            className="flex select-none items-center justify-center rounded-2xl bg-felt/70 p-4 shadow-inner"
+            className="flex select-none items-center justify-center rounded-2xl bg-[#3a7a5c] p-4 shadow-inner"
           >
             <div ref={canvasWrapperRef} className="w-full max-w-[420px]">
               <svg
