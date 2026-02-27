@@ -166,6 +166,8 @@ function App() {
   const mmToPx = canvasSizePx / BALL_DIAMETER_MM;
   const ballRadiusPx = BALL_RADIUS_MM * mmToPx;
   const tipRadiusPx = (TIP_DIAMETER_MM / 2) * mmToPx;
+  const svgPad = tipRadiusPx + 2;
+  const svgSize = canvasSizePx + svgPad * 2;
 
   const findNearestGridPoint = useCallback(
     (target: TipPosition) => {
@@ -333,9 +335,9 @@ function App() {
             <div ref={canvasWrapperRef} className="w-full max-w-[420px]">
               <svg
                 ref={svgRef}
-                width={canvasSizePx}
-                height={canvasSizePx}
-                viewBox={`0 0 ${canvasSizePx} ${canvasSizePx}`}
+                width={svgSize}
+                height={svgSize}
+                viewBox={`0 0 ${svgSize} ${svgSize}`}
                 className="h-auto w-full select-none touch-none"
                 style={{
                   WebkitUserSelect: "none",
@@ -377,10 +379,10 @@ function App() {
                     />
                   </filter>
                 </defs>
-                <rect width="100%" height="100%" rx="24" fill="transparent" />
+                <rect width="100%" height="100%" rx="24" fill="#3a7a5c" />
                 <g
-                  transform={`translate(${canvasSizePx / 2} ${
-                    canvasSizePx / 2
+                  transform={`translate(${svgSize / 2} ${
+                    svgSize / 2
                   })`}
                 >
                   {gridLevels.map((level) => {
@@ -410,15 +412,15 @@ function App() {
                   })}
                 </g>
                 <circle
-                  cx={canvasSizePx / 2}
-                  cy={canvasSizePx / 2}
+                  cx={svgSize / 2}
+                  cy={svgSize / 2}
                   r={ballRadiusPx}
                   fill="url(#ballShade)"
                   filter="url(#shadow)"
                 />
                 <g
-                  transform={`translate(${canvasSizePx / 2} ${
-                    canvasSizePx / 2
+                  transform={`translate(${svgSize / 2} ${
+                    svgSize / 2
                   })`}
                 >
                   {gridPoints.map((point, index) => {
@@ -439,8 +441,8 @@ function App() {
                   })}
                 </g>
                 <circle
-                  cx={canvasSizePx / 2 + tipPosition.x * mmToPx}
-                  cy={canvasSizePx / 2 - tipPosition.y * mmToPx}
+                  cx={svgSize / 2 + tipPosition.x * mmToPx}
+                  cy={svgSize / 2 - tipPosition.y * mmToPx}
                   r={tipRadiusPx}
                   fill="#111827"
                   stroke="white"
